@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 from bundle_adjustment import bundle_adjustment
-from plot_utils import viz_3d, viz_3d_matplotlib, draw_epipolar_lines
+# from plot_utils import viz_3d, viz_3d_matplotlib, draw_epipolar_lines
 
 ######################### Path Variables ##################################################
 curr_dir_path = os.getcwd()
