@@ -26,7 +26,7 @@ def get_camera_intrinsic_params():
     
     return K
 
-def get_pinhole_intrinsic_params():
+def get_pinhole_intrinsic_params(): # Use this.
     K = []
     with open(calibration_file_dir + '/camera_observatory.txt') as f:
         lines = f.readlines()
@@ -76,11 +76,11 @@ if __name__ == "__main__":
     for filename in os.listdir(images_dir)[0:3]:
         
         file = os.path.join(images_dir, filename)
-        img = cv.imread(file, 0)
+        img = cv.imread(file, 0) # Use grayscale.
 
         resized_img = img
         sift = cv.xfeatures2d.SIFT_create()
-        kp, desc = sift.detectAndCompute(resized_img,None)
+        kp, desc = sift.detectAndCompute(resized_img,None) # get Keypoints, Descriptors
         
         if iter == 0:
             prev_img = resized_img
