@@ -1,3 +1,4 @@
+open3d
 opencv-python
 numpy
 matplotlib
@@ -5,3 +6,4 @@ scipy
 mayavi
 configobj
 opencv-contrib-python
+vtk

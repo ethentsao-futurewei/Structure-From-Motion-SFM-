@@ -1,9 +1,9 @@
-import cv2 as cv
+import cv2
 import os
 import numpy as np
 
 from bundle_adjustment import bundle_adjustment
-# from plot_utils import viz_3d, viz_3d_matplotlib, draw_epipolar_lines
+from plot_utils import viz_3d, viz_3d_matplotlib, draw_epipolar_lines
 
 ######################### Path Variables ##################################################
 curr_dir_path = os.getcwd()
@@ -108,7 +108,7 @@ def rep_error_fn(opt_variables, points_2d, num_pts):
         reprojected_pt = np.matmul(P, pt_3d)
         reprojected_pt /= reprojected_pt[2]
 
-        print("Reprojection Error \n" + str(pt_2d - reprojected_pt[0:2]))
+        # print("Reprojection Error \n" + str(pt_2d - reprojected_pt[0:2]))
         rep_error.append(pt_2d - reprojected_pt[0:2])
 
 
@@ -140,10 +140,10 @@ if __name__ == "__main__":
     for filename in os.listdir(images_dir)[0:3]:
         
         file = os.path.join(images_dir, filename)
-        img = cv.imread(file, 0) # Use grayscale.
+        img = cv2.imread(file, 0) # Use grayscale.
 
         resized_img = img
-        sift = cv.xfeatures2d.SIFT_create()
+        sift = cv2.SIFT_create()
         kp, desc = sift.detectAndCompute(resized_img,None) # get Keypoints, Descriptors
 
         if (camera_images_info[filename]["camera_id"] != chosen_id):
@@ -158,7 +158,7 @@ if __name__ == "__main__":
             FLANN_INDEX_KDTREE = 1
             index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
             search_params = dict(checks=100)
-            flann = cv.FlannBasedMatcher(index_params,search_params)
+            flann = cv2.FlannBasedMatcher(index_params,search_params)
             matches = flann.knnMatch(prev_desc,desc,k=2)
             good = []
             pts1 = []
@@ -172,7 +172,7 @@ if __name__ == "__main__":
                     
             pts1 = np.array(pts1)
             pts2 = np.array(pts2)
-            F, mask = cv.findFundamentalMat(pts1,pts2,cv.FM_RANSAC)
+            F, mask = cv2.findFundamentalMat(pts1,pts2, cv2.FM_RANSAC)
             print("The fundamental matrix \n" + str(F))
 
             # We select only inlier points
@@ -185,7 +185,7 @@ if __name__ == "__main__":
 
             print("The new essential matrix is \n" + str(E))
 
-            retval, R, t, mask = cv.recoverPose(E, pts1, pts2, K)
+            retval, R, t, mask = cv2.recoverPose(E, pts1, pts2, cameraMatrix=np.array(K))
             
             print("I+0 \n" + str(R_t_0))
 
@@ -207,7 +207,7 @@ if __name__ == "__main__":
 
             print("Shape pts 1\n" + str(pts1.shape))
 
-            points_3d = cv.triangulatePoints(P1, P2, pts1, pts2)
+            points_3d = cv2.triangulatePoints(P1, P2, pts1, pts2)
             points_3d /= points_3d[3]
 
             # P2, points_3D = bundle_adjustment(points_3d, pts2, resized_img, P2)
@@ -231,4 +231,5 @@ if __name__ == "__main__":
     pts_4d.append(Y)
     pts_4d.append(Z)
 
-    viz_3d(np.array(pts_4d))
+    # viz_3d(np.array(pts_4d))
+    viz_3d_matplotlib(np.array(pts_4d))

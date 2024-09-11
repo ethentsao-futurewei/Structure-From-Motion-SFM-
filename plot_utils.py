@@ -2,26 +2,41 @@ import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from mayavi import mlab
+# from mayavi import mlab
+import open3d as o3d
+
+# def viz_3d(pt_3d):
+#     X = pt_3d[0,:]
+#     Y = pt_3d[1,:]
+#     Z = pt_3d[2,:]
+
+#     mlab.points3d(
+#         X,   # x
+#         Y,   # y
+#         Z,   # z
+#         mode="point", # How to render each point {'point', 'sphere' , 'cube' }
+#         colormap='copper',  # 'bone', 'copper',
+#         line_width=10,
+#         scale_factor=1
+#     )
+#     mlab.axes(xlabel='x', ylabel='y', zlabel='z',ranges=(0,20,0,20,0,10),nb_labels=10)
+#     mlab.show()
 
 def viz_3d(pt_3d):
-    X = pt_3d[0,:]
-    Y = pt_3d[1,:]
-    Z = pt_3d[2,:]
+    points = np.vstack((pt_3d[0, :], pt_3d[1, :], pt_3d[2, :])).T
+    
+    # Create an Open3D point cloud object
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+    
+    # Visualize the point cloud
+    o3d.visualization.draw_geometries([pcd], 
+                                      zoom=0.5,
+                                      front=[0, 0, -1], 
+                                      lookat=[10, 10, 10], 
+                                      up=[0, 1, 0])
 
-    mlab.points3d(
-        X,   # x
-        Y,   # y
-        Z,   # z
-        mode="point", # How to render each point {'point', 'sphere' , 'cube' }
-        colormap='copper',  # 'bone', 'copper',
-        line_width=10,
-        scale_factor=1
-    )
-    mlab.axes(xlabel='x', ylabel='y', zlabel='z',ranges=(0,20,0,20,0,10),nb_labels=10)
-    mlab.show()
-
-def viz_3d_matplotlib(pt_3d):
+def viz_3d_matplotlib(pt_3d, filename="3d_plot.png"):
     X = pt_3d[0,:]
     Y = pt_3d[1,:]
     Z = pt_3d[2,:]
@@ -33,8 +48,9 @@ def viz_3d_matplotlib(pt_3d):
                Y,
                Z,
                s=1,
-               cmap='gray')
+               cmap='copper')
     
+    plt.savefig(filename)
     plt.show()
 
 
