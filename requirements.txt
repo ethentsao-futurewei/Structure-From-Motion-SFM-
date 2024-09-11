@@ -4,3 +4,4 @@ matplotlib
 scipy
 mayavi
 configobj
+opencv-contrib-python

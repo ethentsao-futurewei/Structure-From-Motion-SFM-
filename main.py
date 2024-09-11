@@ -7,9 +7,64 @@ from bundle_adjustment import bundle_adjustment
 
 ######################### Path Variables ##################################################
 curr_dir_path = os.getcwd()
-images_dir = curr_dir_path + '/data/images/observatory'
-calibration_file_dir = curr_dir_path + '/data/calibration'
+print(curr_dir_path)
+images_dir = os.path.join(curr_dir_path, "data/images/observatory")
+calibration_file_dir = os.path.join(curr_dir_path, "data/calibration")
+calibration_file = os.path.join(calibration_file_dir, "cameras.txt")
+images_info_file = os.path.join(calibration_file_dir, "images.txt")
 ###########################################################################################
+
+def get_camera_intrinsic(file_path):
+    # Camera list with one line of data per camera:
+    # CAMERA_ID, MODEL, WIDTH, HEIGHT, PARAMS[fx, fy, cx, cy]
+    camera_intrinsic_dict = {}
+
+    with open(file_path, 'r') as file:
+        for line in file:
+            if (line[0] != "#"):
+                info = line.strip().split(" ")
+                camera_intrinsic_dict[int(info[0])] = {
+                    "camera_id": int(info[0]),
+                    "model": info[1],
+                    "width": int(info[2]),
+                    "height": int(info[3]),
+                    "fx": float(info[4]),
+                    "fy": float(info[5]),
+                    "cx": float(info[6]),
+                    "cy": float(info[7]),
+                    "k":  [[float(info[4]), 0, float(info[6])], [0, float(info[5]), float(info[7])], [0, 0, 1]]
+                }
+    
+    # print(camera_intrinsic_dict)
+    return camera_intrinsic_dict
+
+def get_camera_images_info(file_path):
+    # Image list with two lines of data per image:
+    # IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME
+    # POINTS2D[] as (X, Y, POINT3D_ID)
+    camera_images_info_dict = {}
+
+    with open(file_path, 'r') as file:
+        # 38 0.599829 0.420167 0.369213 -0.572142 5.64051 7.38378 14.2108 0 dslr_images_undistorted/DSC_0323.JPG
+        for line in file:
+            if (line[0] != "#" and line[-4:-1] == "JPG"):
+                info = line.strip().split(" ")
+                name = info[9].split("/")[1]
+                camera_images_info_dict[name] = {
+                    "image_id": int(info[0]),
+                    "qw": float(info[1]),
+                    "qx": float(info[2]),
+                    "qy": float(info[3]),
+                    "qz": float(info[4]),
+                    "tx": float(info[5]),
+                    "ty": float(info[6]),
+                    "tz": float(info[7]),
+                    "camera_id": int(info[8]),
+                    "image_name": info[9]
+                }
+
+    # print(camera_images_info_dict)
+    return camera_images_info_dict
 
 def get_camera_intrinsic_params():
     K = []
@@ -58,12 +113,21 @@ def rep_error_fn(opt_variables, points_2d, num_pts):
 
 
 if __name__ == "__main__":
-    # Variables 
+    # Variables
+    chosen_id = 1
     iter = 0
     prev_img = None
     prev_kp = None
     prev_desc = None
-    K = np.array(get_pinhole_intrinsic_params(), dtype=np.float)
+    camera_intrinsic_info = get_camera_intrinsic(calibration_file)
+    camera_images_info = get_camera_images_info(images_info_file)
+    tmp = [0, 0, 0, 0]
+    for k, v in camera_images_info.items():
+        tmp[v["camera_id"]] += 1
+    print(tmp)
+
+    # K = np.array(get_pinhole_intrinsic_params(), dtype=np.float)
+    K = camera_intrinsic_info[chosen_id]["k"]
     R_t_0 = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0]])
     R_t_1 = np.empty((3,4))
     P1 = np.matmul(K, R_t_0)
@@ -81,6 +145,9 @@ if __name__ == "__main__":
         resized_img = img
         sift = cv.xfeatures2d.SIFT_create()
         kp, desc = sift.detectAndCompute(resized_img,None) # get Keypoints, Descriptors
+
+        if (camera_images_info[filename]["camera_id"] != chosen_id):
+            continue
         
         if iter == 0:
             prev_img = resized_img
