@@ -1,6 +1,7 @@
 import cv2
 import os
 import numpy as np
+import sys
 
 from bundle_adjustment import bundle_adjustment
 from plot_utils import viz_3d, viz_3d_matplotlib, draw_epipolar_lines
@@ -13,6 +14,12 @@ calibration_file_dir = os.path.join(curr_dir_path, "data/calibration")
 calibration_file = os.path.join(calibration_file_dir, "cameras.txt")
 images_info_file = os.path.join(calibration_file_dir, "images.txt")
 ###########################################################################################
+
+def count_camera_id_images_num(camera_images_info):
+    tmp = [0, 0, 0, 0]
+    for k, v in camera_images_info.items():
+        tmp[v["camera_id"]] += 1
+    print(tmp)
 
 def get_camera_intrinsic(file_path):
     # Camera list with one line of data per camera:
@@ -105,26 +112,26 @@ def rep_error_fn(opt_variables, points_2d, num_pts):
     for idx, pt_3d in enumerate(point_3d):
         pt_2d = np.array([points_2d[0][idx], points_2d[1][idx]])
 
-        reprojected_pt = np.matmul(P, pt_3d)
-        reprojected_pt /= reprojected_pt[2]
+        reprojected_pt = np.matmul(P, pt_3d) # Transform from 3d to 2d, z != 1
+        reprojected_pt /= reprojected_pt[2] # Transform from 3d to 2d, z == 1
 
         # print("Reprojection Error \n" + str(pt_2d - reprojected_pt[0:2]))
-        rep_error.append(pt_2d - reprojected_pt[0:2])
+        rep_error.append(pt_2d - reprojected_pt[0:2]) # Compared with the GT
+
+    return rep_error
 
 
 if __name__ == "__main__":
     # Variables
-    chosen_id = 1
     iter = 0
     prev_img = None
     prev_kp = None
     prev_desc = None
     camera_intrinsic_info = get_camera_intrinsic(calibration_file)
     camera_images_info = get_camera_images_info(images_info_file)
-    tmp = [0, 0, 0, 0]
-    for k, v in camera_images_info.items():
-        tmp[v["camera_id"]] += 1
-    print(tmp)
+
+    count_camera_id_images_num(camera_images_info)
+    chosen_id = 1 # Chosen camera id.
 
     # K = np.array(get_pinhole_intrinsic_params(), dtype=np.float)
     K = camera_intrinsic_info[chosen_id]["k"]
@@ -136,19 +143,25 @@ if __name__ == "__main__":
     X = np.array([])
     Y = np.array([])
     Z = np.array([])
+    rep_error_list = []
 
-    for filename in os.listdir(images_dir)[0:3]:
+    for filename in sorted(os.listdir(images_dir))[0:3]:
+        if (camera_images_info[filename]["camera_id"] != chosen_id):
+            continue
+
+        print(f"Iter: {iter}, Filename: {filename}")
         
         file = os.path.join(images_dir, filename)
         img = cv2.imread(file, 0) # Use grayscale.
+        # img = cv2.imread(file)
+        # cv2.imwrite("output_image.png", img)
 
         resized_img = img
         sift = cv2.SIFT_create()
-        kp, desc = sift.detectAndCompute(resized_img,None) # get Keypoints, Descriptors
+        kp, desc = sift.detectAndCompute(resized_img, None) # get Keypoints (pts), Descriptors (vectors)
+        # img_with_kp = cv2.drawKeypoints(img, kp, None)
+        # cv2.imwrite("output_image.png", img_with_kp)
 
-        if (camera_images_info[filename]["camera_id"] != chosen_id):
-            continue
-        
         if iter == 0:
             prev_img = resized_img
             prev_kp = kp
@@ -158,29 +171,28 @@ if __name__ == "__main__":
             FLANN_INDEX_KDTREE = 1
             index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
             search_params = dict(checks=100)
-            flann = cv2.FlannBasedMatcher(index_params,search_params)
-            matches = flann.knnMatch(prev_desc,desc,k=2)
+            flann = cv2.FlannBasedMatcher(index_params, search_params)
+            matches = flann.knnMatch(prev_desc, desc, k=2) # Matching.
             good = []
             pts1 = []
             pts2 = []
             # ratio test as per Lowe's paper
-            for i,(m,n) in enumerate(matches):
+            for i,(m, n) in enumerate(matches):
                 if m.distance < 0.7*n.distance:
                     good.append(m)
                     pts1.append(prev_kp[m.queryIdx].pt)
                     pts2.append(kp[m.trainIdx].pt)
                     
-            pts1 = np.array(pts1)
-            pts2 = np.array(pts2)
-            F, mask = cv2.findFundamentalMat(pts1,pts2, cv2.FM_RANSAC)
+            pts1 = np.array(pts1) # Good points in prev.
+            pts2 = np.array(pts2) # Good points in curr.
+            F, mask = cv2.findFundamentalMat(pts1, pts2, cv2.FM_RANSAC) # Find the fundamental matrix.
             print("The fundamental matrix \n" + str(F))
 
             # We select only inlier points
-            pts1 = pts1[mask.ravel()==1]
-            pts2 = pts2[mask.ravel()==1]
+            pts1 = pts1[mask.ravel()==1] # flatten by view.
+            pts2 = pts2[mask.ravel()==1] # flatten by view.
 
-            #draw_epipolar_lines(pts1, pts2, prev_img, resized_img)
-
+            # draw_epipolar_lines(pts1, pts2, prev_img, resized_img, F)
             E = np.matmul(np.matmul(np.transpose(K), F), K)
 
             print("The new essential matrix is \n" + str(E))
@@ -191,8 +203,8 @@ if __name__ == "__main__":
 
             print("Mullllllllllllll \n" + str(np.matmul(R, R_t_0[:3,:3])))
 
-            R_t_1[:3,:3] = np.matmul(R, R_t_0[:3,:3])
-            R_t_1[:3, 3] = R_t_0[:3, 3] + np.matmul(R_t_0[:3,:3],t.ravel())
+            R_t_1[:3,:3] = np.matmul(R, R_t_0[:3,:3]) # Camera extrinsic: rotation.
+            R_t_1[:3, 3] = R_t_0[:3, 3] + np.matmul(R_t_0[:3,:3], t.ravel()) # Camera extrinsic: translation.
 
             print("The R_t_0 \n" + str(R_t_0))
             print("The R_t_1 \n" + str(R_t_1))
@@ -207,13 +219,13 @@ if __name__ == "__main__":
 
             print("Shape pts 1\n" + str(pts1.shape))
 
-            points_3d = cv2.triangulatePoints(P1, P2, pts1, pts2)
+            points_3d = cv2.triangulatePoints(P1, P2, pts1, pts2) # Triangulation: reconstructing 3D points from two 2D projections.
             points_3d /= points_3d[3]
 
             # P2, points_3D = bundle_adjustment(points_3d, pts2, resized_img, P2)
             opt_variables = np.hstack((P2.ravel(), points_3d.ravel(order="F")))
             num_points = len(pts2[0])
-            rep_error_fn(opt_variables, pts2, num_points)
+            rep_error_list.append(rep_error_fn(opt_variables, pts2, num_points))
 
             X = np.concatenate((X, points_3d[0]))
             Y = np.concatenate((Y, points_3d[1]))

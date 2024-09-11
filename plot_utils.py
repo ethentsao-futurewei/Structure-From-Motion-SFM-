@@ -54,23 +54,25 @@ def viz_3d_matplotlib(pt_3d, filename="3d_plot.png"):
     plt.show()
 
 
-def draw_epipolar_lines(pts1, pts2, img1, img2):
+def draw_epipolar_lines(pts1, pts2, img1, img2, F, filename="epipolar_lines.png"):
     pts1 = np.int32(pts1)
     pts2 = np.int32(pts2)
     # Find epilines corresponding to points in right image (second image) and
     # drawing its lines on left image
-    lines1 = cv.computeCorrespondEpilines(pts2.reshape(-1,1,2), 2,F)
+    lines1 = cv.computeCorrespondEpilines(pts2.reshape(-1,1,2), 2, F)
     lines1 = lines1.reshape(-1,3)
     img5,img6 = drawlines(img1,img2,lines1,pts1,pts2)
     # Find epilines corresponding to points in left image (first image) and
     # drawing its lines on right image
-    lines2 = cv.computeCorrespondEpilines(pts1.reshape(-1,1,2), 1,F)
+    lines2 = cv.computeCorrespondEpilines(pts1.reshape(-1,1,2), 1, F)
     lines2 = lines2.reshape(-1,3)
     img3,img4 = drawlines(img2,img1,lines2,pts2,pts1)
     plt.subplot(121)
     plt.imshow(img5)
     plt.subplot(122)
     plt.imshow(img3)
+
+    plt.savefig(filename)
     plt.show()
 
 def drawlines(img1,img2,lines,pts1,pts2):
