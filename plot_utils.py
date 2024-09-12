@@ -1,9 +1,9 @@
 import cv2 as cv
+import open3d as o3d
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 # from mayavi import mlab
-import open3d as o3d
 
 # def viz_3d(pt_3d):
 #     X = pt_3d[0,:]
@@ -23,11 +23,10 @@ import open3d as o3d
 #     mlab.show()
 
 def viz_3d(pt_3d):
-    points = np.vstack((pt_3d[0, :], pt_3d[1, :], pt_3d[2, :])).T
-    
     # Create an Open3D point cloud object
     pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points)
+    print("Start vis.")
+    pcd.points = o3d.utility.Vector3dVector(pt_3d)
     
     # Visualize the point cloud
     o3d.visualization.draw_geometries([pcd], 

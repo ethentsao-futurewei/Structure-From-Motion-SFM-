@@ -2,6 +2,7 @@ import cv2
 import os
 import numpy as np
 import sys
+import open3d as o3d
 
 from bundle_adjustment import bundle_adjustment
 from plot_utils import viz_3d, viz_3d_matplotlib, draw_epipolar_lines
@@ -132,6 +133,8 @@ if __name__ == "__main__":
 
     count_camera_id_images_num(camera_images_info)
     chosen_id = 1 # Chosen camera id.
+    bounds = [0, 3]
+    set_bundle_adjustment = False
 
     # K = np.array(get_pinhole_intrinsic_params(), dtype=np.float)
     K = camera_intrinsic_info[chosen_id]["k"]
@@ -145,7 +148,7 @@ if __name__ == "__main__":
     Z = np.array([])
     rep_error_list = []
 
-    for filename in sorted(os.listdir(images_dir))[0:3]:
+    for filename in sorted(os.listdir(images_dir))[bounds[0]:bounds[1]]:
         if (camera_images_info[filename]["camera_id"] != chosen_id):
             continue
 
@@ -222,7 +225,8 @@ if __name__ == "__main__":
             points_3d = cv2.triangulatePoints(P1, P2, pts1, pts2) # Triangulation: reconstructing 3D points from two 2D projections.
             points_3d /= points_3d[3]
 
-            # P2, points_3D = bundle_adjustment(points_3d, pts2, resized_img, P2)
+            if (set_bundle_adjustment): # Very long.
+                P2, points_3D = bundle_adjustment(points_3d, pts2, resized_img, P2)
             opt_variables = np.hstack((P2.ravel(), points_3d.ravel(order="F")))
             num_points = len(pts2[0])
             rep_error_list.append(rep_error_fn(opt_variables, pts2, num_points))
@@ -239,9 +243,10 @@ if __name__ == "__main__":
 
         iter = iter + 1
 
-    pts_4d.append(X)
-    pts_4d.append(Y)
-    pts_4d.append(Z)
+    # pts_4d.append(X)
+    # pts_4d.append(Y)
+    # pts_4d.append(Z)
+    pts_4d = np.column_stack((X, Y, Z)).astype(np.float64)
+    np.save('array.npy', pts_4d)
 
-    # viz_3d(np.array(pts_4d))
-    viz_3d_matplotlib(np.array(pts_4d))
+    viz_3d(pts_4d)
